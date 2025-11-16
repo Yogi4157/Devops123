@@ -1,44 +1,21 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -xeuo pipefail
 
-# Ensure we are in the Jenkins workspace
-cd "${WORKSPACE:-/home/jenkins/retro/workspace/dev-jen}" || { echo "Workspace not found"; exit 1; }
+# Optional: workspace fallback
+WORKDIR="${WORKSPACE:-$(pwd)}"
+cd "$WORKDIR"
 
-echo "=== PWD ==="
-pwd
+# Required input (set these or pass via env)
+LAUNCH_TEMPLATE_ID="${LAUNCH_TEMPLATE_ID:-lt-0123456789abcdef0}"   # replace with your template id
+LAUNCH_TEMPLATE_VERSION="${LAUNCH_TEMPLATE_VERSION:-1}"            # or use "$Latest"
+AWS_REGION="${AWS_REGION:-ap-south-1}"                             # choose your region
+INSTANCE_COUNT="${INSTANCE_COUNT:-1}"
+TAG_NAME="${TAG_NAME:-jenkins-launched}"
 
-echo "=== Listing top-level files and dirs ==="
-ls -la
-
-# Try to find the script (limit depth so it's fast)
-SCRIPT=$(find . -maxdepth 4 -type f -iname 'create_ec2_from_template.sh' -print -quit || true)
-
-if [ -z "$SCRIPT" ]; then
-  echo "ERROR: create_ec2_from_template.sh not found in workspace."
-  echo "Files in workspace (depth 3):"
-  find . -maxdepth 3 -type f -printf '%P\n' || true
-  echo ""
-  echo "If the script is in your repo, make sure it is committed & pushed to the branch Jenkins checks out."
-  # Optional: fail with a clear exit code
-  exit 2
-fi
-
-echo "Found script at: $SCRIPT"
-echo "Permissions before fix:"
-ls -l "$SCRIPT"
-
-# Convert CRLF->LF if needed
-if grep -q $'\r' "$SCRIPT" 2>/dev/null; then
-  echo "Converting CRLF to LF"
-  sed -i 's/\r$//' "$SCRIPT"
-fi
-
-# Ensure executable
-chmod +x "$SCRIPT" || true
-echo "Permissions after fix:"
-ls -l "$SCRIPT"
-
-# Run with bash so shebang issues won't block; -x for trace
-bash -x "$SCRIPT"
-
-
+# Run Instances from Launch Template
+aws ec2 run-instances \
+  --launch-template LaunchTemplateId="$LAUNCH_TEMPLATE_ID",Version="$LAUNCH_TEMPLATE_VERSION" \
+  --count "$INSTANCE_COUNT" \
+  --region "$AWS_REGION" \
+  --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$TAG_NAME}]" \
+  --output json
