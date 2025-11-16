@@ -1,26 +1,44 @@
 #!/bin/bash
-echo "Launching EC2 instance using Launch Template lt-032c679b1f63f9a4f"
-# Variables (modify region if required)
-REGION="ap-south-1"
-LAUNCH_TEMPLATE_ID="lt-079000c4825cecf8f"
-echo "AWS Region: $REGION"
-echo "Launch Template: $LAUNCH_TEMPLATE_ID"
-# Run AWS CLI
-instance_id=$(aws ec2 run-instances \
-    --launch-template LaunchTemplateId=$LAUNCH_TEMPLATE_ID \
-    --region $REGION \
-    --query "Instances[0].InstanceId" \
-    --output text)
-if [ $? -ne 0 ]; then
-    echo "EC2 Launch Failed."
-    exit 1
+set -xeuo pipefail
+
+# Ensure we are in the Jenkins workspace
+cd "${WORKSPACE:-/home/jenkins/retro/workspace/dev-jen}" || { echo "Workspace not found"; exit 1; }
+
+echo "=== PWD ==="
+pwd
+
+echo "=== Listing top-level files and dirs ==="
+ls -la
+
+# Try to find the script (limit depth so it's fast)
+SCRIPT=$(find . -maxdepth 4 -type f -iname 'create_ec2_from_template.sh' -print -quit || true)
+
+if [ -z "$SCRIPT" ]; then
+  echo "ERROR: create_ec2_from_template.sh not found in workspace."
+  echo "Files in workspace (depth 3):"
+  find . -maxdepth 3 -type f -printf '%P\n' || true
+  echo ""
+  echo "If the script is in your repo, make sure it is committed & pushed to the branch Jenkins checks out."
+  # Optional: fail with a clear exit code
+  exit 2
 fi
-echo "EC2 Launched Successfully!"
-echo "Instance ID: $instance_id"
-# Optional: Tag the instance
-aws ec2 create-tags \
-    --resources $instance_id \
-    --tags Key=Name,Value=Jenkins-Launched-Instance \
-    --region $REGION
-echo "Tag applied to instance: Jenkins-Launched-Instance"
-#End
+
+echo "Found script at: $SCRIPT"
+echo "Permissions before fix:"
+ls -l "$SCRIPT"
+
+# Convert CRLF->LF if needed
+if grep -q $'\r' "$SCRIPT" 2>/dev/null; then
+  echo "Converting CRLF to LF"
+  sed -i 's/\r$//' "$SCRIPT"
+fi
+
+# Ensure executable
+chmod +x "$SCRIPT" || true
+echo "Permissions after fix:"
+ls -l "$SCRIPT"
+
+# Run with bash so shebang issues won't block; -x for trace
+bash -x "$SCRIPT"
+
+
