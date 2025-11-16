@@ -2,7 +2,7 @@
 echo "Launching EC2 instance using Launch Template lt-032c679b1f63f9a4f"
 # Variables (modify region if required)
 REGION="ap-south-1"
-LAUNCH_TEMPLATE_ID="lt-032c679b1f63f9a4f"
+LAUNCH_TEMPLATE_ID="lt-079000c4825cecf8f"
 echo "AWS Region: $REGION"
 echo "Launch Template: $LAUNCH_TEMPLATE_ID"
 # Run AWS CLI
