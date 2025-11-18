@@ -1,24 +1,25 @@
 #!/bin/bash
-set -euo pipefail
-
-# --- required variables (edit values or pass via env)
-REGION="${REGION:-ap-south-1}"
-LAUNCH_TEMPLATE_ID="${LAUNCH_TEMPLATE_ID:-lt-079000c4825cecf8f}"
-
-echo "Launching EC2 instance using Launch Template ${LAUNCH_TEMPLATE_ID}"
-echo "AWS Region: ${REGION}"
-
-# verify aws CLI exists
-if ! command -v aws >/dev/null 2>&1; then
-  echo "aws CLI not found. Install awscli or ensure PATH is correct." >&2
-  exit 2
-fi
-
-# run the instance (returns instance id)
+echo "Launching EC2 instance using Launch Template lt-0d7d63b44af633cf7"
+# Variables (modify region if required)
+REGION="ap-south-1"
+LAUNCH_TEMPLATE_ID="lt-079000c4825cecf8f"
+echo "AWS Region: $REGION"
+echo "Launch Template: $LAUNCH_TEMPLATE_ID"
+# Run AWS CLI
 instance_id=$(aws ec2 run-instances \
-  --launch-template "LaunchTemplateId=${LAUNCH_TEMPLATE_ID}" \
-  --region "${REGION}" \
-  --query 'Instances[0].InstanceId' \
-  --output text)
-
-echo "Launched instance: ${instance_id}"
+    --launch-template LaunchTemplateId=$LAUNCH_TEMPLATE_ID \
+    --region $REGION \
+    --query "Instances[0].InstanceId" \
+    --output text)
+if [ $? -ne 0 ]; then
+    echo "EC2 Launch Failed."
+fi
+echo "EC2 Launched Successfully!"
+echo "Instance ID: $instance_id"
+# Optional: Tag the instance
+aws ec2 create-tags \
+    --resources $instance_id \
+    --tags Key=Name,Value=Jenkins-Launched-Instance \
+    --region $REGION
+echo "Tag applied to instance: Jenkins-Launched-Instance"
+#End
